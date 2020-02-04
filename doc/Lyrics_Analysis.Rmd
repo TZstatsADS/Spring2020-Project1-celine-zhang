@@ -3,7 +3,7 @@ title: "Lyrics"
 output: html_notebook
 ---
 
-Nowadays, music is a big part of people's life. Lyrics is said to be the soul of music. There are so many kinds of music, like Rock and Metal, but, as for me, I am not familiar with all kinds of genres. So I am trying exploring the lyrics, which is the key part of music, to understand the underlying things behind the music's genre.
+Nowadays, music is a big part of people's life. Lyrics is considered as the soul of music. There are so many kinds of music, like Rock and Metal, but, as for me, I am not familiar with all kinds of genres. So,  in this project, I am trying exploring the lyrics and understanding the underlying things behind the music's genres.
 
 
 ```{r}
@@ -18,6 +18,8 @@ library(d3heatmap)
 library(wordcloud2)
 library(tm)
 library(grid)
+library(data.table)
+library(plotly)
 ```
 
 
@@ -82,7 +84,8 @@ lyrics.length.violin.plot
 
 ```
 
-From the histogram, we notice that the number of words in hip-hop music is commonly more than that in other genres. Also, in the boxplot, we can see that the song with the most words is from hip-hop and the song with the least words is from eletronic. From the violin-plot, it is shown that, the number of words in the genres, such as country, jazz and rock music, is kind of consistent as time goes by. The Eletronic music has the longest span in the number of words.I am trying to figure out the relationship between the distribution of number of lyrics and the decades, so I pick the Metal Music as the example.
+From the histogram, we notice that the number of words in hip-hop music is commonly more than that in other genres. Also, in the boxplot, we can see that hip-hop contains the most words and the eletronic has the least. From the violin-plot, it is shown that, the number of words in the genres, such as country, jazz and rock music, is kind of consistent as time goes by. The Eletronic music has the longest range in the number of words.
+For next step, I am trying to figure out the relationship between the distribution of number of lyrics and the decades, so I pick the Metal Music as the example.
 
 
 
@@ -102,7 +105,7 @@ lyrics.metal <-
        fill="Decade")
 lyrics.metal
 ```
-According to the ridges plot, it is evident that the length of lyrics is increasing and the distribution of it is more concentrated as the year goes by.
+According to the ridges plot, there is evident that the length of lyrics is increasing and the distribution became more concentrated as the year goes by.
 
 ## The analysis of content in lyrics
 
@@ -290,7 +293,7 @@ multiplot(rock.top10,pop.top10,RandB.top10,jazz.top10,country.top10,folk.top10,e
 
 
 ```
-As we can see, except for Metal, the love is used most frequently by all the genres, and love is mentioned about 80000 times, which is the highest in all genres. However, in metal music, the terms, life and time, are mentioned more than the term love, and I guess this is resulted by the core of metal music, the aggressive attitude about life rather than the joy of the world. We also can conclude this from the word cloud of metal music's lyrics
+As we can see, except for Metal, love is used the most frequently by all the genres, and word "love" is mentioned over 80000 times, which is the highest in all genres. However, in metal music, the terms like "life" and "time", are mentioned more than the term "love". I guess this is resulted by the core of metal music, the aggressive attitude about life rather than the joy of the world. We also can conclude this from the word cloud of metal music's lyrics.
 
 
 ```{r}
@@ -308,9 +311,9 @@ metal<-
 wordcloud2(metal[1:200,],size=0.5, color="random-dark")
 ```
 
-The word clouds contains the top 200 frequently used terms in metal music, and it is obivious that most of terms expresses negative feelings, like die, pain and lie. Hence, I guess the major emotion of metal music is negative. In order to explore the emotion underlying the metal music, we use the sentimental analysis.
+This wordcloud contains the top 200 frequently used terms in metal music, and we can observe that most of terms express negative feelings like die, pain and lie. Hence, I guess the major emotion of metal music is negative. In order to explore the emotion underlying the metal music, we use the sentiment analysis.
 
-## Semtimental analysis
+## Semtiment analysis
 ```{r}
 sentiment.list <- get_sentiments("nrc")
 metal.sentiment<-
@@ -346,7 +349,7 @@ p2 <-
 multiplot(p1,p2,cols=1)
   
 ```
-As we can see, the top 5 major feeling of the metal music is negative, positive, fear, sadness and anger, and four of five suggest the darkness of life. Hence, we can infer that the reason why metal music is less often to mention the term love is that its major emotion is the negative. We also can use the sentiment analysis on all the genres to prove that.
+As we can see, the top 5 major feeling of the metal music is negative, positive, fear, sadness and anger, and four of five suggest the darkness of life. Hence, we can infer that the reason why metal music is less often to mention the term "love" is that its major emotion is negative. We also can use the sentiment analysis on all the genres to prove that.
 
 ```{r}
 # trying to figure out which sentiment the term love is corresponding
@@ -371,16 +374,66 @@ d3heatmap(sentiment.hmp,color = "Blues", Rowv=T, Colv=F)
 
 
 ```
-As the result shown, in the sentimental analysis, the term love is corresponding to joy and positive emotion, and also considering what the heatmap is shown，compared to other genres, the metal music has more preference on the negative emotion rather than the joy and positive emotion. So, this is why the metal music relatively rarely mentions the term love.
+As the result shown in the sentiment analysis, the term 'love' is corresponding to joy and positive emotion, and also considering what the heatmap is shown，compared to other genres, the metal music has more preference on the negative emotion rather than the joyful and positive emotions. Therefore, the metal music relatively rarely mentions the term love. 
 
+## The distribution of metal artists 
 
+I wanna find out the distribution of metal music as decades goes by
+```{r}
+dt_artist <- fread('../data/artists.csv')
 
+metal.origin.1975to1985 <- 
+  dt_lyrics %>% 
+  left_join(dt_artist,c("artist"="Artist")) %>% 
+  filter(genre=="Metal",decade=="(1975,1985]",Origin != "") %>% 
+  group_by(genre,Origin) %>%
+  summarise(n=n())
+metal.origin.1985to1995 <- 
+  dt_lyrics %>% 
+  left_join(dt_artist,c("artist"="Artist")) %>% 
+  filter(genre=="Metal",decade=="(1985,1995]",Origin != "") %>% 
+  group_by(genre,Origin) %>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+metal.origin.1995to2005  <-
+  dt_lyrics %>% 
+  left_join(dt_artist,c("artist"="Artist")) %>% 
+  filter(genre=="Metal",decade=="(1995,2005]",Origin != "") %>% 
+  group_by(genre,Origin) %>%
+  summarise(n=n())
+metal.origin.2005to2015  <-
+  dt_lyrics %>% 
+  left_join(dt_artist,c("artist"="Artist")) %>% 
+  filter(genre=="Metal",decade=="(2005,2015]",Origin != "") %>% 
+  group_by(genre,Origin) %>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+metal.origin.2015to2025 <-
+  dt_lyrics %>% 
+  left_join(dt_artist,c("artist"="Artist")) %>% 
+  filter(genre=="Metal",decade=="(2015,2025]",Origin != "") %>% 
+  group_by(genre,Origin) %>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+plot_ly(metal.origin.1975to1985,labels=~Origin,values=~n,textinfo="none") %>%
+  add_pie()
+plot_ly(metal.origin.1985to1995,labels=~Origin,values=~n,textinfo="none") %>%
+  add_pie()
+plot_ly(metal.origin.1995to2005,labels=~Origin,values=~n,textinfo="none") %>%
+  add_pie()
+plot_ly(metal.origin.2005to2015,labels=~Origin,values=~n,textinfo="none") %>%
+  add_pie()
+plot_ly(metal.origin.2015to2025,labels=~Origin,values=~n,textinfo="none") %>%
+  add_pie()
 
+```
+As we can see from the pie chart, the first metal music was created in Sweden. And during 1985 to 1995, most of metal artist were still from Sweden, with a few of them came from the United States. During 1995 to 2005, the metal music was spread to other European coutries, such as Finland and England. After 2005, the metal music is spread around Europe, North America.
 
+## conclusion
+1 Hip-Hop commonly contains the longer words compared to other genres. The number of words in metal music seems to increase as time goes by.
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+2 The reason why the metal music is less often to mention the term "love" is that its major emotion is more about the darkness and negative feelings about the world.
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+3 Most of metal artists are from Sweden.
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
