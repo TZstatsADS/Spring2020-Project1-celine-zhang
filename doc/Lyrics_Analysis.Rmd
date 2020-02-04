@@ -47,11 +47,12 @@ lyrics.length.hist <-
   dplyr::group_by(genre) %>%
   dplyr::summarise(song.length = sum(length)/n()) %>%
   ggplot()+
-  geom_bar(aes(x=genre,y=song.length),stat="identity")+
+  geom_bar(aes(x=genre,y=song.length),stat="identity",color="black",fill="white")+
   labs(title="Average Length of Lyrics in Each Genre",
        subtitle = "Hiphop has the longest lyrics.",
-       xlab="Genre",
-       ylab="Length of Lyrics")
+       x="Genre",
+       y="Length of Lyrics")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 lyrics.length.hist
 
 lyrics.length.boxplot <- 
@@ -63,8 +64,9 @@ lyrics.length.boxplot <-
   coord_flip()+
   labs(title="Average Length of Lyrics in Each Genre",
        subtitle = "Hiphop generally has the longest lyrics.",
-       xlab="Genre",
-       ylab="Length of Lyrics")
+       x="Genre",
+       y="Length of Lyrics")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 lyrics.length.boxplot
 
 
@@ -79,7 +81,8 @@ lyrics.length.violin.plot <-
   labs( title= "Distribution of lyrics' length is various among different genres and years",
         x = "Decades",
         y = "Lyrics' Length")+
-  theme_light()
+  theme_light()+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 lyrics.length.violin.plot
 
 ```
@@ -102,7 +105,8 @@ lyrics.metal <-
        more concentrated and the number is increasing",
        x="Length",
        y="Decade",
-       fill="Decade")
+       fill="Decade")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 lyrics.metal
 ```
 According to the ridges plot, there is evident that the length of lyrics is increasing and the distribution became more concentrated as the year goes by.
