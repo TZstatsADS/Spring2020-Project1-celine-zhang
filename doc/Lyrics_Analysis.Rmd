@@ -1,0 +1,386 @@
+---
+title: "Lyrics"
+output: html_notebook
+---
+
+Nowadays, music is a big part of people's life. Lyrics is said to be the soul of music. There are so many kinds of music, like Rock and Metal, but, as for me, I am not familiar with all kinds of genres. So I am trying exploring the lyrics, which is the key part of music, to understand the underlying things behind the music's genre.
+
+
+```{r}
+#load all required packages
+library(dplyr)
+library(tidyverse)
+library(tokenizers)
+library(ggplot2)
+library(ggridges)
+library(tidytext)
+library(d3heatmap)
+library(wordcloud2)
+library(tm)
+library(grid)
+```
+
+
+```{r}
+#load the data
+
+load("~/Desktop/ADS_Teaching/Projects_StarterCodes/Project1-RNotebook/output/processed_lyrics.RData")
+dt_lyrics <- dt_lyrics %>% 
+  select(id,year,genre,artist,stemmedwords,lyrics) %>% 
+  arrange(year) %>%
+  filter(year %in% c(1968:2016),genre != "Not Available",genre != "Other")
+dt_lyrics <- 
+  dt_lyrics %>% 
+  mutate(decade=cut(year,breaks=seq(1965,2025,10)),
+         length=count_words(dt_lyrics$lyrics),
+         length.sep=cut(length,breaks=seq(0,600,100)))
+
+```
+
+## Exploring the relationship between length and genres
+
+```{r}
+lyrics.length.hist <- 
+  dt_lyrics %>% 
+  dplyr::group_by(genre) %>%
+  dplyr::summarise(song.length = sum(length)/n()) %>%
+  ggplot()+
+  geom_bar(aes(x=genre,y=song.length),stat="identity")+
+  labs(title="Average Length of Lyrics in Each Genre",
+       subtitle = "Hiphop has the longest lyrics.",
+       xlab="Genre",
+       ylab="Length of Lyrics")
+lyrics.length.hist
+
+lyrics.length.boxplot <- 
+  dt_lyrics %>% 
+  dplyr::group_by(genre,year) %>%
+  dplyr::summarise(song.length = sum(length)/n()) %>%
+  ggplot(aes(x=genre,y=song.length,fill=genre))+
+  geom_boxplot(alpha=0.6)+
+  coord_flip()+
+  labs(title="Average Length of Lyrics in Each Genre",
+       subtitle = "Hiphop generally has the longest lyrics.",
+       xlab="Genre",
+       ylab="Length of Lyrics")
+lyrics.length.boxplot
+
+
+# try to see whether the distribution of length of lyrics is different from each genre or decades
+lyrics.length.violin.plot <- 
+  dt_lyrics %>% 
+  dplyr::group_by(genre,year) %>%
+  dplyr::summarise(song.length = sum(length)/n()) %>%
+  ggplot(aes(x=year,y=song.length))+
+  geom_violin()+
+  facet_wrap(~genre)+
+  labs( title= "Distribution of lyrics' length is various among different genres and years",
+        x = "Decades",
+        y = "Lyrics' Length")+
+  theme_light()
+lyrics.length.violin.plot
+
+```
+
+From the histogram, we notice that the number of words in hip-hop music is commonly more than that in other genres. Also, in the boxplot, we can see that the song with the most words is from hip-hop and the song with the least words is from eletronic. From the violin-plot, it is shown that, the number of words in the genres, such as country, jazz and rock music, is kind of consistent as time goes by. The Eletronic music has the longest span in the number of words.I am trying to figure out the relationship between the distribution of number of lyrics and the decades, so I pick the Metal Music as the example.
+
+
+
+```{r}
+# try to see the length of lyrics of hiphop's distribution
+lyrics.metal <- 
+  dt_lyrics %>%
+  filter(genre=="Metal") %>%
+  drop_na()%>%
+  ggplot(aes(x=length.sep,y=decade,group=decade,fill=decade))+
+  geom_density_ridges(alpha=0.6,scale=2)+
+  labs(title = "Number of Words in Metal Music's lyrics' Distribution from 1995 to 2025",
+       subtitle = "As time goes by, the number of words in Indie musics' lyrics is 
+       more concentrated and the number is increasing",
+       x="Length",
+       y="Decade",
+       fill="Decade")
+lyrics.metal
+```
+According to the ridges plot, it is evident that the length of lyrics is increasing and the distribution of it is more concentrated as the year goes by.
+
+## The analysis of content in lyrics
+
+```{r}
+
+# the definition of multi_plot
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+# the top10 popular words
+
+rock.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Rock") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Rock",
+       y=" ")
+
+pop.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Pop") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Pop",
+       y=" ")
+
+RandB.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "R&B") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="R&B",
+       y=" ")
+
+jazz.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Jazz") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Jazz",
+       y=" ")
+
+country.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Country") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Country",
+       y=" ")
+
+folk.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Folk") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Folk",
+       y=" ")
+
+electronic.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Electronic") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Electronic",
+       y=" ")
+
+metal.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Metal") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Metal",
+       y=" ")
+
+hiphop.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Hip-Hop") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+ geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Hip-Hop",
+       y=" ")
+
+indie.top10<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Indie") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  top_n(n=10) %>%
+  ggplot() +
+  geom_bar(aes(x=word,y=count),stat="identity")+
+  labs(x="Indie",
+       y=" ")
+
+
+multiplot(rock.top10,pop.top10,RandB.top10,jazz.top10,country.top10,folk.top10,electronic.top10,metal.top10,hiphop.top10,indie.top10,cols=2)
+
+
+```
+As we can see, except for Metal, the love is used most frequently by all the genres, and love is mentioned about 80000 times, which is the highest in all genres. However, in metal music, the terms, life and time, are mentioned more than the term love, and I guess this is resulted by the core of metal music, the aggressive attitude about life rather than the joy of the world. We also can conclude this from the word cloud of metal music's lyrics
+
+
+```{r}
+metal<-
+  dt_lyrics %>%
+  dplyr::filter(genre == "Metal") %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  dplyr::group_by(genre,word) %>%
+  dplyr::summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  ungroup() %>%
+  select(-genre)
+
+wordcloud2(metal[1:200,],size=0.5, color="random-dark")
+```
+
+The word clouds contains the top 200 frequently used terms in metal music, and it is obivious that most of terms expresses negative feelings, like die, pain and lie. Hence, I guess the major emotion of metal music is negative. In order to explore the emotion underlying the metal music, we use the sentimental analysis.
+
+## Semtimental analysis
+```{r}
+sentiment.list <- get_sentiments("nrc")
+metal.sentiment<-
+  dt_lyrics %>%
+  dplyr::filter(genre=="Metal")%>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  inner_join(sentiment.list,by="word") %>%
+  dplyr::group_by(genre,sentiment) %>%
+  dplyr::summarise(n=n()) %>%
+  arrange(desc(n))
+metal.sentiment.top5 <- metal.sentiment[1:5,]
+
+metal.sentiment.decade <- 
+  dt_lyrics %>%
+  dplyr::filter(genre=="Metal") %>%
+  dplyr::select(genre, decade, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  inner_join(sentiment.list,by="word") %>%
+  dplyr::group_by(genre,decade,sentiment) %>%
+  dplyr::summarise(n=n()) 
+metal.sentiment.decade_exc_2005_2015 <-
+  metal.sentiment.decade %>%
+  filter(decade != "(2005,2015]")
+
+p1 <-
+  ggplot(metal.sentiment.decade,aes(x=decade,y=n,fill=sentiment))+
+  geom_bar(stat="identity")
+
+p2 <-
+  ggplot(metal.sentiment.decade_exc_2005_2015,aes(x=decade,y=n,fill=sentiment))+
+  geom_bar(stat="identity")
+multiplot(p1,p2,cols=1)
+  
+```
+As we can see, the top 5 major feeling of the metal music is negative, positive, fear, sadness and anger, and four of five suggest the darkness of life. Hence, we can infer that the reason why metal music is less often to mention the term love is that its major emotion is the negative. We also can use the sentiment analysis on all the genres to prove that.
+
+```{r}
+# trying to figure out which sentiment the term love is corresponding
+sentiment.list$sentiment[which(sentiment.list$word=="love")]
+
+# sentiment analysis on all genres
+sentiment.all <-
+  dt_lyrics %>%
+  dplyr::select(genre, stemmedwords) %>% 
+  unnest_tokens(word, stemmedwords) %>%
+  inner_join(sentiment.list,by="word") %>%
+  dplyr::group_by(genre,sentiment) %>%
+  dplyr::summarise(n=n()) %>%
+  pivot_wider(names_from = "sentiment",values_from = "n" ) %>%
+  ungroup()
+
+sentiment.genre <- sentiment.all$genre
+sentiments <- sentiment.all %>% select(-genre) %>% as.matrix()
+sentiment.hmp <- diag(1/(apply(sentiment,1,sum))) %*% sentiments
+rownames(sentiment.hmp) <- sentiment.genre
+d3heatmap(sentiment.hmp,color = "Blues", Rowv=T, Colv=F)
+
+
+```
+As the result shown, in the sentimental analysis, the term love is corresponding to joy and positive emotion, and also considering what the heatmap is shown，compared to other genres, the metal music has more preference on the negative emotion rather than the joy and positive emotion. So, this is why the metal music relatively rarely mentions the term love.
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
