@@ -496,10 +496,12 @@ As we can see from the pie chart, the first metal music was created in Sweden. A
 # Conclusion
 \newline
 <font size=3>
-1 Hip-Hop commonly contains the longer words compared to other genres. The number of words in metal music seems to increase as time goes by.
 
-2 The reason why the metal music is less often to mention the term "love" is that its major emotion is more about the darkness and negative feelings about the world.
 
-3 Most of metal artists are from Sweden.
++ Hip-Hop commonly contains the longer words compared to other genres. The number of words in metal music seems to increase as time goes by.
+
++ The reason why the metal music is less often to mention the term "love" is that its major emotion is more about the darkness and negative feelings about the world.
+
++ Most of metal artists are from Sweden.
 
 
